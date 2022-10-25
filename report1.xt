@@ -1,0 +1,50 @@
+1.1-1.4
+
+    asm_cmd(ADD, 5, 1, 0, 10);// 1.1
+    asm_cmd(ADD, 5, 1, 0, 0xfe00); // 1.2
+    asm_cmd(SUB, 4, 3, 4, 0); // 1.3
+    asm_cmd(JLT, 0, 3, 1, 11); // 1.4
+
+
+1.5
+
+We can load a 32-bit constant to a register by loading the 16 most significant bits using the ADD command with an immediate. Then we perform an 8-bit left shift and use the ADD command with the 16 least significant bits as the immediate.
+
+1.6
+
+subroutines can be called by storing the current PC in a known address, then jumping to the address where the subroutine begins and when the subroutine is over then jump back to the address store aside.
+
+
+2.1
+
+The program computes the partial sum of the values stored starting address 15.
+The execution stops when it reaches address 23.
+
+2.2
+
+The inputs are stored at mem addresses 15-23.
+
+2.3
+
+The outputs are stored at mem addresses 16-23.
+
+2.4
+
+    asm_cmd(ADD, 2, 1, 0, 15);// 0: R2 = 15
+    asm_cmd(ADD, 3, 1, 0, 1); // 1: R3 = 1
+    asm_cmd(ADD, 4, 1, 0, 8); // 2: R4 = 8
+    asm_cmd(JEQ, 0, 3, 4, 11); // 3: IF R3==R4 GOTO 11:
+    asm_cmd(LD,  5, 0, 2, 0); // 4: R5 = MEM[R2]
+    asm_cmd(ADD, 2, 2, 1, 1); // 5: R2 += 1
+    asm_cmd(LD,  6, 0, 2, 0); // 6: R6 = MEM[R2]
+    asm_cmd(ADD, 6, 6, 5, 0); // 7: R6 += R5
+    asm_cmd(ST,  0, 6, 2, 0); // 8: MEM[R2] = R6
+    asm_cmd(ADD, 3, 3, 1, 1); // 9: R3 += 1
+    asm_cmd(JEQ, 0, 0, 0, 3); // 10: GOTO 3:
+    asm_cmd(HLT, 0, 0, 0, 0); // 11: HALT
+
+
+2.5
+
+To have fewer references to memory we can use the value in R6 to assign R5 with a value instead of reading it from memory (we write the partial sum from R6 to memory and then read from memory to R5 from the exact same address).
+
