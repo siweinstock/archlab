@@ -614,9 +614,9 @@ int main(int argc, char* argv[]) {
 	int with_imm, halt = 0;
 	oper *current_oper = (oper*)malloc(sizeof(oper));
 
-	FILE *imemin, *dmemin, *diskin, *irq2in, *dmemout, *regout, *trace, *hwregtrace, *cycles, *monitor, *monitor_b, *diskout;
+	FILE *imemin, *dmemout, *trace,;
 
-	if (argc != 14) {
+	if (argc != 2) {
 		fprintf(stderr, "wrong number of arguments (%d)\n", argc);
 		exit(EXIT_FAILURE);
 	}
@@ -624,65 +624,12 @@ int main(int argc, char* argv[]) {
 		fprintf(stderr, "Failed to open %s\n", argv[1]);
 		exit(EXIT_FAILURE);
 	}
-	if ((dmemin = fopen(argv[2], "r")) == NULL) {
-		fprintf(stderr, "Failed to open %s\n", argv[2]);
-		exit(EXIT_FAILURE);
-	}
-	if ((diskin = fopen(argv[3], "r")) == NULL) {
-		fprintf(stderr, "Failed to open %s\n", argv[3]);
-		exit(EXIT_FAILURE);
-	}
-	if ((irq2in = fopen(argv[4], "r")) == NULL) {
-		fprintf(stderr, "Failed to open %s\n", argv[4]);
-		exit(EXIT_FAILURE);
-	}
-	if ((dmemout = fopen(argv[5], "w")) == NULL) {
-		fprintf(stderr, "Failed to open %s\n", argv[5]);
-		exit(EXIT_FAILURE);
-	}
-	if ((regout = fopen(argv[6], "w")) == NULL) {
-		fprintf(stderr, "Failed to open %s\n", argv[6]);
-		exit(EXIT_FAILURE);
-	}
-	if ((trace = fopen(argv[7], "w")) == NULL) {
-		fprintf(stderr, "Failed to open %s\n", argv[7]);
-		exit(EXIT_FAILURE);
-	}
-	if ((hwregtrace = fopen(argv[8], "w")) == NULL) {
-		fprintf(stderr, "Failed to open %s\n", argv[8]);
-		exit(EXIT_FAILURE);
-	}
-	if ((cycles = fopen(argv[9], "w")) == NULL) {
-		fprintf(stderr, "Failed to open %s\n", argv[9]);
-		exit(EXIT_FAILURE);
-	}
-	if ((leds = fopen(argv[10], "w")) == NULL) {
-		fprintf(stderr, "Failed to open %s\n", argv[10]);
-		exit(EXIT_FAILURE);
-	}
-	if ((monitor = fopen(argv[11], "w")) == NULL) {
-		fprintf(stderr, "Failed to open %s\n", argv[11]);
-		exit(EXIT_FAILURE);
-	}
-	if ((monitor_b = fopen(argv[12], "wb")) == NULL) {
-		fprintf(stderr, "Failed to open %s\n", argv[12]);
-		exit(EXIT_FAILURE);
-	}
-	if ((diskout = fopen(argv[13], "w")) == NULL) {
-		fprintf(stderr, "Failed to open %s\n", argv[13]);
-		exit(EXIT_FAILURE);
-	}
-
 	// load memory into matcging image
 	load_instruction_memory(imemin, imem_img, 5);
-	load_memory(dmemin, dmem_img, 8);
-	load_memory(diskin, HD_img, 8);
 
 	next_irq2 = get_next_irq2(irq2in);
 
 	fclose(imemin);
-	fclose(dmemin);
-	fclose(diskin);
 
 	// fetch-decode-execute loop
 	while (FDE && !halt) {
@@ -692,19 +639,7 @@ int main(int argc, char* argv[]) {
 		trace_hw_reg(hwregtrace, current_oper, with_imm);
 		halt = exec(current_oper, with_imm); // if HALT was executed we exit the loop
 
-		if (IORegister[17]) { // if disk is busy
-			disk_update_and_check();
-		}
-
-		if (is_irq & !is_handling_irq) {
-			handle_irq();
-		}
-
-		//_getch();
 	}
-
-	fprintf(cycles, "%d\n%d\n", IORegister[8], instuction_count); // export data to cycles.txt file
-	update_screen(monitor, monitor_b);
 
 	//_getch();
 	free(current_oper);
@@ -712,16 +647,9 @@ int main(int argc, char* argv[]) {
 	// export images to output files
 	write_regout(regout);
 	dump_memory(dmemout, dmem_img, 8);
-	dump_memory(diskout, HD_img, 8);
 
-	fclose(regout);
-	fclose(hwregtrace);
 	fclose(trace);
-	fclose(cycles);
 	fclose(dmemout);
-	fclose(monitor);
-	fclose(monitor_b);
-	fclose(diskout);
-	fclose(leds);
+
 
 }
