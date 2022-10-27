@@ -11,9 +11,10 @@ int SRAM[MEMLEN];   // static memory
 int inst_counter;   // count total executed instructions
 char* oplist[] = {"ADD", "SUB", "LSF", "RSF", "AND", "OR", "XOR", "LHI", "LD",
                   "ST", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
-              "JLT", "JLE", "JEQ", "JNE", "JIN", "invalid", "invalid", "invalid",
-              "HLT"};   // opcode to name translation
+                  "JLT", "JLE", "JEQ", "JNE", "JIN", "invalid", "invalid", "invalid",
+                  "HLT"};   // opcode to name translation
 
+FILE* stream;  // output stream (file or stdout)
 
 // populate command struct
 void parse_op(int hex, op* cmd) {
@@ -27,33 +28,28 @@ void parse_op(int hex, op* cmd) {
 
 // dump command contents
 void print_cmd(op* cmd) {
-    fprintf(stdout, "--- instruction %d (%04x) @ PC %d (%04x) -----------------------------------------------------------\n",
-           inst_counter, inst_counter, PC, PC);
-    fprintf(stdout, "pc = %04d, ", PC);
-    fprintf(stdout, "inst = %08x, ", cmd->inst);
-    fprintf(stdout, "opcode = %d (%s), ", cmd->opcode, oplist[cmd->opcode]);
-    fprintf(stdout, "dst = %d, ", cmd->dst);
-    fprintf(stdout, "src0 = %d, ", cmd->src0);
-    fprintf(stdout, "src1 = %d, ", cmd->src1);
-    fprintf(stdout, "immediate = %08x\n", cmd->imm);
-
-}
-
-// convert a command from hex form to integer
-int op2int(char* op) {
-    return (int) strtol(op, NULL, 16);
+    fprintf(stream, "--- instruction %d (%04x) @ PC %ld (%04lx) -----------------------------------------------------------\n",
+            inst_counter, inst_counter, PC, PC);
+    fprintf(stream, "pc = %04ld, ", PC);
+    fprintf(stream, "inst = %08x, ", cmd->inst);
+    fprintf(stream, "opcode = %d (%s), ", cmd->opcode, oplist[cmd->opcode]);
+    fprintf(stream, "dst = %d, ", cmd->dst);
+    fprintf(stream, "src0 = %d, ", cmd->src0);
+    fprintf(stream, "src1 = %d, ", cmd->src1);
+    fprintf(stream, "immediate = %08x\n", cmd->imm);
 }
 
 // display registers values
 void regdump() {
     for (int i=0; i<REGNUM; i++) {
-        fprintf(stdout, "r[%d] = %08x ", i, R[i]);
-        if ((i+1) % (REGNUM/2) == 0) fprintf(stdout, " \n");
+        fprintf(stream, "r[%d] = %08x ", i, R[i]);
+        if ((i+1) % (REGNUM/2) == 0) fprintf(stream, "\n");
     }
-    fprintf(stdout, "\n");
+    fprintf(stream, "\n");
 }
 
 // TODO: figure out what to print for other commands
+// TODO: verify correctness of commands not in example
 void execute(op* cmd) {
     // effective operands
     int src0 = (cmd->src0 == 1) ? cmd->imm : R[cmd->src0];
@@ -71,42 +67,42 @@ void execute(op* cmd) {
         case ADD:
             R[dst] = src0 + src1;
             if (DEBUG)
-                fprintf(stdout, ">>>> EXEC: R[%d] = %d ADD %d <<<<\n", dst, src0, src1);
+                fprintf(stream, ">>>> EXEC: R[%d] = %d ADD %d <<<<\n\n", dst, src0, src1);
             break;
         case SUB:
             R[dst] = src0 - src1;
             if (DEBUG)
-                fprintf(stdout, ">>>> EXEC: R[%d] = %d SUB %d <<<<\n", dst, src0, src1);
+                fprintf(stream, ">>>> EXEC: R[%d] = %d SUB %d <<<<\n\n", dst, src0, src1);
 
             break;
         case LSF:
             R[dst] = src0 << src1;
             if (DEBUG)
-                fprintf(stdout, ">>>> EXEC: R[%d] = %d LSF %d <<<<\n", dst, src0, src1);
+                fprintf(stream, ">>>> EXEC: R[%d] = %d LSF %d <<<<\n\n", dst, src0, src1);
 
             break;
         case RSF:
             R[dst] = (int) ((unsigned int)src0 >> src1); // sign extended
             if (DEBUG)
-                fprintf(stdout, ">>>> EXEC: R[%d] = %d RSF %d <<<<\n", dst, src0, src1);
+                fprintf(stream, ">>>> EXEC: R[%d] = %d RSF %d <<<<\n\n", dst, src0, src1);
 
             break;
         case AND:
             R[dst] = src0 & src1;
             if (DEBUG)
-                fprintf(stdout, ">>>> EXEC: R[%d] = %d AND %d <<<<\n", dst, src0, src1);
+                fprintf(stream, ">>>> EXEC: R[%d] = %d AND %d <<<<\n\n", dst, src0, src1);
 
             break;
         case OR:
             R[dst] = src0 | src1;
             if (DEBUG)
-                fprintf(stdout, ">>>> EXEC: R[%d] = %d OR %d <<<<\n", dst, src0, src1);
+                fprintf(stream, ">>>> EXEC: R[%d] = %d OR %d <<<<\n\n", dst, src0, src1);
 
             break;
         case XOR:
             R[dst] = src0 ^ src1;
             if (DEBUG)
-                fprintf(stdout, ">>>> EXEC: R[%d] = %d XOR %d <<<<\n", dst, src0, src1);
+                fprintf(stream, ">>>> EXEC: R[%d] = %d XOR %d <<<<\n\n", dst, src0, src1);
 
             break;
         case LHI:
@@ -116,12 +112,12 @@ void execute(op* cmd) {
         case LD:
             R[dst] = SRAM[src1];
             if (DEBUG)
-                fprintf(stdout, ">>>> EXEC: R[%d] = MEM[%d] = %08x <<<<\n", dst, src1, SRAM[src1]);
+                fprintf(stream, ">>>> EXEC: R[%d] = MEM[%d] = %08x <<<<\n\n", dst, src1, SRAM[src1]);
             break;
         case ST:
             SRAM[src1] = src0;
             if (DEBUG)
-                fprintf(stdout, ">>>> EXEC: MEM[%d] = R[%d] = %08x <<<<\n", src1, cmd->src0, SRAM[src1]);
+                fprintf(stream, ">>>> EXEC: MEM[%d] = R[%d] = %08x <<<<\n\n", src1, cmd->src0, SRAM[src1]);
             break;
         case JLT:
             if (src0 < src1) {
@@ -144,7 +140,7 @@ void execute(op* cmd) {
                 PC = cmd->imm;
             }
             if (DEBUG)
-                fprintf(stdout, ">>>> EXEC: JEQ %d, %d, %d <<<<\n", src0, src1, update_pc ? PC+1 : PC);
+                fprintf(stream, ">>>> EXEC: JEQ %d, %d, %ld <<<<\n\n", src0, src1, update_pc ? PC+1 : PC);
 
             break;
         case JNE:
@@ -162,9 +158,9 @@ void execute(op* cmd) {
         case HLT:
             update_pc = 0;
             if (DEBUG)
-                fprintf(stdout, ">>>> EXEC: HALT at PC %04x <<<<\n", PC);
+                fprintf(stream, ">>>> EXEC: HALT at PC %04lx<<<<\n", PC);
             break;
-        // illegal operation, NOP
+            // illegal operation, NOP
         default:
             fprintf(stderr, "ERROR: INVALID OPERATION\n");
             inst_counter--;
@@ -179,25 +175,33 @@ void execute(op* cmd) {
 }
 
 // load memory image from file to memory
-// mode = number of bits in hex representation (5 or 8)
-int load_mem(FILE* memfile, int img[], int mode) {
+int load_mem(FILE* memfile, int img[]) {
     char line[OPLEN];
     int i = 0;
 
-    while (fgets(line, OPLEN+1, memfile)) {
-        img[i++] = op2int(line);
-//        fprintf(stdout, "%08X\n", img[i-1]);
+    while (fgets(line, OPLEN, memfile)) {
+        img[i++] = (int) strtol(line, NULL, 16);    // convert a command from hex form to integer
+
+        if (SHOWMEM)
+            fprintf(stdout, "%08X\n", img[i-1]);
     }
     return i;
 }
 
+// export SRAM contents to file
+void dump_mem(FILE* memfile, int img[]) {
+    for (int i=0; i<MEMLEN; i++) {
+        fprintf(memfile, "%08x\n", SRAM[i]);
+    }
+}
+
 
 // TODO: identify and handle edge cases
-// TODO: test in Linux environment
+// TODO: test in Linux environment (tested on example and seems to work)
 int main(int argc, char* argv[]) {
 
     op* cmd = (op*) malloc(sizeof(op));
-    FILE *f_inst;   // TODO: add print to file support
+    FILE *f_inst, *f_trace, *f_sram;
     int lines;
 
     if (argc != 2) {
@@ -207,10 +211,22 @@ int main(int argc, char* argv[]) {
 
     if ((f_inst = fopen(argv[1], "r")) == NULL) {
         fprintf(stderr, "Failed to open %s\n", argv[1]);
+        exit(-1);
     }
-    lines = load_mem(f_inst, SRAM, 5);  // load SRAM
+    lines = load_mem(f_inst, SRAM);  // load SRAM
 
-    fprintf(stdout, "program %s loaded, %d lines\n\n", argv[1], lines);
+    if ((f_trace = fopen("my_trace.txt", "w")) == NULL) {
+        fprintf(stderr, "Failed to open my_trace.txt\n");
+        exit(-1);
+    }
+    stream = SCREEN ? stdout : f_trace;
+
+    if ((f_sram = fopen("sram_out.txt", "w")) == NULL) {
+        fprintf(stderr, "Failed to open sram_out.txt\n");
+        exit(-1);
+    }
+
+    fprintf(stream, "program %s loaded, %d lines\n\n", argv[1], lines);
 
     // FDE emulation
     while (cmd->opcode != HLT) {
@@ -222,10 +238,13 @@ int main(int argc, char* argv[]) {
             getchar();
     }
 
-    fprintf(stdout, "sim finished at pc %d, %d instructions\n", PC, inst_counter);
+    dump_mem(f_sram, SRAM);
+    fprintf(stream, "sim finished at pc %ld, %d instructions", PC, inst_counter);
 
     free(cmd);
     fclose(f_inst);
+    fclose(f_trace);
+    fclose(f_sram);
 
     return 0;
 }

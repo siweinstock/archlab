@@ -6,11 +6,12 @@
 #define ARCHLAB1_ISS_H
 
 #define DEBUG 1
+#define SHOWMEM 0
+#define SCREEN 0
 #define GETCH 0
 
-#define OPLEN 80
+#define OPLEN 14
 #define MEMLEN 65536
-#define IMEMLEN 1024
 #define REGNUM 8
 
 #define ADD 0
