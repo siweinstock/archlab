@@ -1,6 +1,9 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include "iss.h"
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <string>
+#include "iss.hh"
+using namespace std;
 
 
 // global variables
@@ -9,7 +12,7 @@ long PC = 0;        // program counter register
 int SRAM[MEMLEN];   // static memory
 
 int inst_counter;   // count total executed instructions
-char* oplist[] = {"ADD", "SUB", "LSF", "RSF", "AND", "OR", "XOR", "LHI", "LD",
+string oplist[] = {"ADD", "SUB", "LSF", "RSF", "AND", "OR", "XOR", "LHI", "LD",
                   "ST", "invalid", "invalid", "invalid", "invalid", "invalid", "invalid",
                   "JLT", "JLE", "JEQ", "JNE", "JIN", "invalid", "invalid", "invalid",
                   "HLT"};   // opcode to name translation
@@ -32,7 +35,7 @@ void print_cmd(op* cmd) {
             inst_counter, inst_counter, PC, PC);
     fprintf(stream, "pc = %04ld, ", PC);
     fprintf(stream, "inst = %08x, ", cmd->inst);
-    fprintf(stream, "opcode = %d (%s), ", cmd->opcode, oplist[cmd->opcode]);
+    fprintf(stream, "opcode = %d (%s), ", cmd->opcode, oplist[cmd->opcode].c_str());
     fprintf(stream, "dst = %d, ", cmd->dst);
     fprintf(stream, "src0 = %d, ", cmd->src0);
     fprintf(stream, "src1 = %d, ", cmd->src1);
@@ -48,7 +51,6 @@ void regdump() {
     fprintf(stream, "\n");
 }
 
-// TODO: figure out what to print for other commands
 // TODO: verify correctness of commands not in example
 void execute(op* cmd) {
     // effective operands
@@ -108,6 +110,8 @@ void execute(op* cmd) {
         case LHI:
             R[dst] ^= ((R[dst] << 16) >> 16);   // set top 16 bits to zero
             R[dst] |= (R[1] << 16); // set top 16 bits to immediate value
+            if (DEBUG)
+                fprintf(stream, ">>>> EXEC: R[%d][31:16] = immediate[15:0] <<<<\n\n", dst);
             break;
         case LD:
             R[dst] = SRAM[src1];
@@ -125,6 +129,9 @@ void execute(op* cmd) {
                 R[7] = PC;
                 PC = cmd->imm;
             }
+            if (DEBUG)
+                fprintf(stream, ">>>> EXEC: JLT %d, %d, NEXT PC: %ld <<<<\n\n", src0, src1, update_pc ? PC+1 : PC);
+
             break;
         case JLE:
             if (src0 <= src1) {
@@ -132,6 +139,8 @@ void execute(op* cmd) {
                 R[7] = PC;
                 PC = cmd->imm;
             }
+            if (DEBUG)
+                fprintf(stream, ">>>> EXEC: JLE %d, %d, NEXT PC: %ld <<<<\n\n", src0, src1, update_pc ? PC+1 : PC);
             break;
         case JEQ:
             if (src0 == src1) {
@@ -140,8 +149,7 @@ void execute(op* cmd) {
                 PC = cmd->imm;
             }
             if (DEBUG)
-                fprintf(stream, ">>>> EXEC: JEQ %d, %d, %ld <<<<\n\n", src0, src1, update_pc ? PC+1 : PC);
-
+                fprintf(stream, ">>>> EXEC: JEQ %d, %d, NEXT PC: %ld <<<<\n\n", src0, src1, update_pc ? PC+1 : PC);
             break;
         case JNE:
             if (src0 != src1) {
@@ -149,11 +157,15 @@ void execute(op* cmd) {
                 R[7] = PC;
                 PC = cmd->imm;
             }
+            if (DEBUG)
+                fprintf(stream, ">>>> EXEC: JNE %d, %d, NEXT PC: %ld <<<<\n\n", src0, src1, update_pc ? PC+1 : PC);
             break;
         case JIN:
             update_pc = 0;
             R[7] = PC;
             PC = src0;
+            if (DEBUG)
+                fprintf(stream, ">>>> EXEC: JIN NEXT PC: %ld <<<<\n\n", PC);
             break;
         case HLT:
             update_pc = 0;
@@ -174,30 +186,25 @@ void execute(op* cmd) {
 
 }
 
-// load memory image from file to memory
-int load_mem(FILE* memfile, int img[]) {
+// load commands
+int load_commands(FILE* memfile, int img[]) {
     char line[OPLEN];
     int i = 0;
 
     while (fgets(line, OPLEN, memfile)) {
-        img[i++] = (int) strtol(line, NULL, 16);    // convert a command from hex form to integer
-
-        if (SHOWMEM)
-            fprintf(stdout, "%08X\n", img[i-1]);
+        img[i++] = (int) strtol(line, nullptr, 16);    // convert a command from hex form to integer
     }
     return i;
 }
 
 // export SRAM contents to file
-void dump_mem(FILE* memfile, int img[]) {
-    for (int i=0; i<MEMLEN; i++) {
-        fprintf(memfile, "%08x\n", SRAM[i]);
+void dump_mem(FILE* memfile) {
+    for (int i : SRAM) {
+        fprintf(memfile, "%08x\n", i);
     }
 }
 
 
-// TODO: identify and handle edge cases
-// TODO: test in Linux environment (tested on example and seems to work)
 int main(int argc, char* argv[]) {
 
     op* cmd = (op*) malloc(sizeof(op));
@@ -209,25 +216,25 @@ int main(int argc, char* argv[]) {
         exit(argc);
     }
 
-    if ((f_inst = fopen(argv[1], "r")) == NULL) {
+    if ((f_inst = fopen(argv[1], "r")) == nullptr) {
         fprintf(stderr, "Failed to open %s\n", argv[1]);
         exit(-1);
     }
-    lines = load_mem(f_inst, SRAM);  // load SRAM
-
-    if ((f_trace = fopen("my_trace.txt", "w")) == NULL) {
-        fprintf(stderr, "Failed to open my_trace.txt\n");
+    lines = load_commands(f_inst, SRAM);  // load SRAM
+    char *ptr= strtok(argv[1], ".");
+    if ((f_trace= fopen((std::string(ptr) + "_trace.txt").c_str(), "w"))==nullptr){
+        fprintf(stderr, "Failed to open trace file.\n");
         exit(-1);
     }
+
     stream = SCREEN ? stdout : f_trace;
 
-    if ((f_sram = fopen("sram_out.txt", "w")) == NULL) {
-        fprintf(stderr, "Failed to open sram_out.txt\n");
+    if ((f_sram = fopen((std::string(ptr) + "_sram_out.txt").c_str(), "w")) == nullptr) {
+        fprintf(stderr, "Failed to open sram file.\n");
         exit(-1);
     }
 
     fprintf(stream, "program %s loaded, %d lines\n\n", argv[1], lines);
-
     // FDE emulation
     while (cmd->opcode != HLT) {
         parse_op(SRAM[PC], cmd);
@@ -238,7 +245,7 @@ int main(int argc, char* argv[]) {
             getchar();
     }
 
-    dump_mem(f_sram, SRAM);
+    dump_mem(f_sram);
     fprintf(stream, "sim finished at pc %ld, %d instructions", PC, inst_counter);
 
     free(cmd);
