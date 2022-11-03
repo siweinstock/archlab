@@ -48,3 +48,82 @@ The outputs are stored at mem addresses 16-23.
 
 To have fewer references to memory we can use the value in R6 to assign R5 with a value instead of reading it from memory (we write the partial sum from R6 to memory and then read from memory to R5 from the exact same address).
 
+3.a.
+//R[2]= NUM1 sign
+//R[3]= NUM2 sign
+//R[4]=NUM1 MAGNITUDE
+//R[5]=NUM2 MAGNITUDE
+//R[6]= result
+
+           asm_cmd(ADD ,2, 0, 1, 0x87); //-7 in SMR
+           asm_cmd(ADD ,3 ,0, 1, 5); //5 in SMR
+           asm_cmd(ST ,0, 2, 1, 1000);
+           asm_cmd(ST ,0, 3, 1, 1001);
+           asm_cmd(ADD ,4, 0, 2, 0);
+           asm_cmd(ADD ,5 ,0 ,3 ,0);
+           asm_cmd(AND, 2,2,1,0x80); //only sign
+           asm_cmd(AND, 3,3,1,0x80); //only sign
+           asm_cmd(SUB ,4, 4, 2, 0 ); //only magnitude
+           asm_cmd(SUB ,5 ,5 ,3 ,0 ); //only magnitude
+           asm_cmd(JEQ ,0, 2, 3, 18 ); //jump to handle same_sign
+           asm_cmd(JLT ,0 ,4 ,5 ,15 ); //jump to handle case where 2nd_larger
+1st_larger:asm_cmd(SUB ,6, 4, 5, 0 );
+           asm_cmd(OR ,6 ,6 ,2 ,0 ); //adds sign of first number
+           asm_cmd(JIN ,0 ,1, 0 ,20 ); //jump to finish
+2nd_larger:asm_cmd(SUB ,6 ,5 ,4 ,0 );
+           asm_cmd(OR ,6 ,6 ,3 ,0 ); //adds sign of second number
+           asm_cmd(JIN ,0 ,1 ,0 ,20); //jump to finish
+same_sign: asm_cmd(ADD ,6, 4, 5, 0 );
+           asm_cmd(OR ,6 ,6 ,2 ,0 ); //adds sign of first nubmer (should be the same sign of result)
+finish:    asm_cmd(ST ,0 ,6 ,1 ,1002 ); //finishing routine for all cases
+           asm_cmd(HLT ,0 ,0 ,0 ,0);
+
+4.a.
+
+according to the following algorithm:
+int isqrt(int num) {
+  int ret = 0;
+  int bit = 1 << 30; // The second-to-top bit is set
+
+  // "bit" starts at the highest power of four <= the argument.
+  while (num < bit) {
+    bit >>= 2;
+  }
+
+  while (bit != 0) {
+    if (num < ret + bit) {
+      ret >>= 1;
+    } else {
+      num -= ret + bit;
+      ret = (ret >> 1) + bit;
+    }
+    bit >>= 2;
+  }
+  return ret;
+}
+
+//R[3] temp
+//R[4]- num
+//R[5] - bit
+//R[6] result
+
+           asm_cmd(ADD ,6, 0, 0, 0);
+           asm_cmd(ADD ,4 ,0, 1, 21000);
+           asm_cmd(ST ,0 ,4 ,1 ,1000);
+           asm_cmd(ADD ,5, 0, 1, 1 );
+           asm_cmd(LSF ,5 ,5 ,1 ,30); //shift to second-to-top bit
+sqrt_bit:  asm_cmd(JLT ,0, 5, 4, 8 ); //if bit<=num jump to sqrt_loop
+           asm_cmd(RSF ,5 ,5 ,1 ,2); // bit >> 2
+           asm_cmd(JIN ,0, 1, 0, 5 ); //jump to sqrt_bit
+sqrt_loop: asm_cmd(JEQ ,0 ,0 ,5 ,18); //jump to return
+           asm_cmd(ADD ,3, 6, 5, 0); //temp=result+bit
+           asm_cmd(JLT ,0 ,3 ,4 ,13); // if temp<=num jump to sqrt_else
+           asm_cmd(RSF ,6, 6, 1, 1 ); //result>>1
+           asm_cmd(JIN ,0 ,1 ,0 ,16); //jump to loop_end
+sqrt_else: asm_cmd(SUB ,4, 4, 3, 0); //num -= temp
+           asm_cmd(RSF ,6 ,6 ,1 ,1 ); //result>>1
+           asm_cmd(ADD ,6 ,6 ,5, 0); //result+=bit
+loop_end:  asm_cmd(RSF ,5 ,5 ,1 ,2 ); //bit>>2
+           asm_cmd(JIN ,0 ,1 ,0 ,8 ); //jump to sqrt_loop
+return:    asm_cmd(ST ,0 ,6 ,1 ,1001 );
+           asm_cmd(HLT,0,0,0,0);
