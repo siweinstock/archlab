@@ -192,15 +192,15 @@ int load_commands(FILE* memfile, int img[]) {
     int i = 0;
 
     while (fgets(line, OPLEN, memfile)) {
-        img[i++] = (int) strtol(line, nullptr, 16);    // convert a command from hex form to integer
+        img[i++] = (int) strtol(line, NULL, 16);    // convert a command from hex form to integer
     }
     return i;
 }
 
 // export SRAM contents to file
 void dump_mem(FILE* memfile) {
-    for (int i : SRAM) {
-        fprintf(memfile, "%08x\n", i);
+    for (int i=0; i<MEMLEN; i++) {
+        fprintf(memfile, "%08x\n", SRAM[i]);
     }
 }
 
@@ -216,20 +216,20 @@ int main(int argc, char* argv[]) {
         exit(argc);
     }
 
-    if ((f_inst = fopen(argv[1], "r")) == nullptr) {
+    if ((f_inst = fopen(argv[1], "r")) == NULL) {
         fprintf(stderr, "Failed to open %s\n", argv[1]);
         exit(-1);
     }
     lines = load_commands(f_inst, SRAM);  // load SRAM
     char *ptr= strtok(argv[1], ".");
-    if ((f_trace= fopen((std::string(ptr) + "_trace.txt").c_str(), "w"))==nullptr){
+    if ((f_trace= fopen((std::string(ptr) + "_trace.txt").c_str(), "w"))==NULL){
         fprintf(stderr, "Failed to open trace file.\n");
         exit(-1);
     }
 
     stream = SCREEN ? stdout : f_trace;
 
-    if ((f_sram = fopen((std::string(ptr) + "_sram_out.txt").c_str(), "w")) == nullptr) {
+    if ((f_sram = fopen((std::string(ptr) + "_sram_out.txt").c_str(), "w")) == NULL) {
         fprintf(stderr, "Failed to open sram file.\n");
         exit(-1);
     }
